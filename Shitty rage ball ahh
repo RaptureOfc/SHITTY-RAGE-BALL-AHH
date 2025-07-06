@@ -3,8 +3,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Rapture Hub",
-    LoadingTitle = "Rapture Hub",
-    LoadingSubtitle = "by yourname",
+    LoadingTitle = "Rapture x west hub",
+    LoadingSubtitle = "by rapture",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -27,17 +27,6 @@ local AutoBlockToggle = MainTab:CreateToggle({
     end,
 })
 
--- Auto refresh Auto Block every 10 seconds
-task.spawn(function()
-    while task.wait(10) do
-        if _G.AutoBlock then
-            _G.AutoBlock = false
-            task.wait(0.2)
-            _G.AutoBlock = true
-        end
-    end
-end)
-
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
 local EspBallToggle = VisualTab:CreateToggle({
@@ -50,60 +39,13 @@ local EspBallToggle = VisualTab:CreateToggle({
 })
 
 local Players = game:GetService("Players")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
 local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart") or player.CharacterAdded:Wait():WaitForChild("HumanoidRootPart")
 
 local ballName = "Ball"
-local hasBlocked = false
-
--- Auto block logic
-task.spawn(function()
-    while task.wait(0.05) do
-        if _G.AutoBlock and hrp and player.Character then
-            local closestBall = nil
-            local closestDistance = math.huge
-
-            for _, ball in ipairs(workspace:GetDescendants()) do
-                if ball:IsA("BasePart") and ball.Name == ballName then
-                    local distance = (ball.Position - hrp.Position).Magnitude
-                    local baseDistance = 30
-                    local dynamicDistance = baseDistance
-
-                    if ball.Velocity.Magnitude > 50 then
-                        dynamicDistance = baseDistance + 10
-                    end
-
-                    -- Check if ball is close enough
-                    if distance <= dynamicDistance then
-                        -- Check if ball is moving towards player
-                        local dirToPlayer = (hrp.Position - ball.Position).Unit
-                        local ballVelocityDir = ball.Velocity.Unit
-                        local dot = dirToPlayer:Dot(ballVelocityDir)
-
-                        if dot > 0.5 then -- Adjust threshold as needed
-                            if distance < closestDistance then
-                                closestBall = ball
-                                closestDistance = distance
-                            end
-                        end
-                    end
-                end
-            end
-
-            if closestBall and not hasBlocked then
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-                task.wait(0.05)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
-                hasBlocked = true
-            elseif not closestBall then
-                hasBlocked = false
-            end
-        else
-            hasBlocked = false
-        end
-    end
-end)
+local blocking = false
 
 -- ESP loop
 local espLabels = {}
@@ -149,12 +91,53 @@ task.spawn(function()
     end
 end)
 
+-- Auto block logic (Blade Ball style)
+task.spawn(function()
+    while task.wait() do
+        if _G.AutoBlock and hrp and player.Character then
+            local closestBall
+            local closestDistance = math.huge
+
+            for _, ball in ipairs(workspace:GetDescendants()) do
+                if ball:IsA("BasePart") and ball.Name == ballName and ball.Velocity.Magnitude > 1 then
+                    local distance = (ball.Position - hrp.Position).Magnitude
+
+                    if distance < 35 then -- short reaction distance
+                        local dirToPlayer = (hrp.Position - ball.Position).Unit
+                        local ballVelocityDir = ball.Velocity.Unit
+                        local dot = dirToPlayer:Dot(ballVelocityDir)
+
+                        if dot > 0.7 and distance < closestDistance then
+                            closestBall = ball
+                            closestDistance = distance
+                        end
+                    end
+                end
+            end
+
+            if closestBall and not blocking then
+                blocking = true
+
+                -- Simulate screen tap at center
+                VirtualInputManager:SendMouseButtonEvent(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2, 0, true, game, 0)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2, 0, false, game, 0)
+
+                task.wait(0.3) -- wait cooldown
+                blocking = false
+            end
+        else
+            blocking = false
+        end
+    end
+end)
+
 -- Tutorial Tab
 local TutorialTab = Window:CreateTab("Tutorial", 4483362458)
 
 TutorialTab:CreateParagraph({
     Title = "Instructions",
-    Content = "For Auto Block to work, change block input mode to Screen Tap in settings."
+    Content = "Set block input to Screen Tap (recommended). Works like Blade Ball auto parry: only triggers once when ball is about to hit."
 })
 
 TutorialTab:CreateImage({
