@@ -106,12 +106,11 @@ task.spawn(function()
     end
 end)
 
--- Auto block logic with double tap
+-- Improved auto block logic with spam
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.05) do -- faster checks
         if _G.AutoBlock and hrp and player.Character then
-            local closestBall
-            local closestDistance = math.huge
+            local shouldBlock = false
 
             for _, ball in ipairs(workspace:GetDescendants()) do
                 if ball:IsA("BasePart") and ball.Name == ballName and ball.Velocity.Magnitude > 1 then
@@ -122,36 +121,32 @@ task.spawn(function()
                         local ballVelocityDir = ball.Velocity.Unit
                         local dot = dirToPlayer:Dot(ballVelocityDir)
 
-                        if dot > 0.7 and distance < closestDistance then
-                            closestBall = ball
-                            closestDistance = distance
+                        if dot > 0.7 then
+                            shouldBlock = true
+                            break
                         end
                     end
                 end
             end
 
-            if closestBall and not blocking then
-                blocking = true
-
-                -- Simulate double screen tap
+            if shouldBlock then
+                -- Spam double tap every 0.1 sec while close
                 local screenX = workspace.CurrentCamera.ViewportSize.X / 2
                 local screenY = workspace.CurrentCamera.ViewportSize.Y / 2
 
                 -- First tap
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
-                task.wait(0.05)
+                task.wait(0.03)
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
-                task.wait(0.05)
+                task.wait(0.03)
                 -- Second tap
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
-                task.wait(0.05)
+                task.wait(0.03)
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
 
-                task.wait(0.3)
-                blocking = false
+                -- You can add optional short wait here if too fast
+                task.wait(0.1)
             end
-        else
-            blocking = false
         end
     end
 end)
@@ -161,7 +156,7 @@ local TutorialTab = Window:CreateTab("Tutorial", 4483362458)
 
 TutorialTab:CreateParagraph({
     Title = "Instructions",
-    Content = "Set block input to Screen Tap (recommended). Works like Blade Ball auto parry: now performs double tap when ball is close. Auto block works after respawn now!"
+    Content = "Set block input to Screen Tap (recommended). New: auto spam block for fast or close balls! Works like Blade Ball parry but spams block continuously when needed."
 })
 
 TutorialTab:CreateImage({
