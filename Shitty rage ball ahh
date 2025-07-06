@@ -11,156 +11,59 @@ local Window = Rayfield:CreateWindow({
         FileName = "RaptureHubConfig"
     },
     Discord = {
-        Enabled = false,
+        Enabled = false
     },
     KeySystem = false,
+    KeySettings = {
+        Title = "Rapture Hub",
+        Subtitle = "Key System",
+        Note = "Join the discord to get key",
+        FileName = "RaptureKey",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"yourkeyhere"}
+    }
 })
 
--- ✅ Remove broken icon IDs to fix tab display
-local MainTab = Window:CreateTab("Main")
-local VisualTab = Window:CreateTab("Visual")
-local TutorialTab = Window:CreateTab("Tutorial")
+--// Create Tab
+local MainTab = Window:CreateTab("Main", 4483362458)
 
-local AutoBlockToggle = MainTab:CreateToggle({
-    Name = "Auto Block",
+--// Variables
+local autoBlockEnabled = false
+local parryKey = Enum.KeyCode.F
+local distanceToParry = 25
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+--// Auto Block loop
+task.spawn(function()
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if autoBlockEnabled then
+            for _, ball in pairs(workspace:GetChildren()) do
+                if ball.Name == "Ball" and ball:FindFirstChild("Velocity") then
+                    local mag = (ball.Position - hrp.Position).Magnitude
+                    if mag < distanceToParry then
+                        -- Press parry key
+                        game:GetService("VirtualInputManager"):SendKeyEvent(true, parryKey, false, game)
+                        task.wait(0.1)
+                        game:GetService("VirtualInputManager"):SendKeyEvent(false, parryKey, false, game)
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+--// Add toggle
+MainTab:CreateToggle({
+    Name = "Auto Block (Auto Parry)",
     CurrentValue = false,
     Flag = "AutoBlock",
     Callback = function(Value)
-        _G.AutoBlock = Value
+        autoBlockEnabled = Value
     end,
 })
 
-local EspBallToggle = VisualTab:CreateToggle({
-    Name = "Esp Ball",
-    CurrentValue = false,
-    Flag = "EspBall",
-    Callback = function(Value)
-        _G.EspBall = Value
-    end,
-})
-
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
-
-local ballName = "Ball"
-local hrp = nil
-
-local function updateHRP()
-    if player.Character then
-        hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    end
-end
-
-updateHRP()
-
-player.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart")
-    updateHRP()
-end)
-
--- ESP loop
-local espLabels = {}
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.EspBall and hrp then
-            for _, ball in ipairs(workspace:GetDescendants()) do
-                if ball:IsA("BasePart") and ball.Name == ballName then
-                    if not espLabels[ball] then
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Name = "BallESP"
-                        billboard.Adornee = ball
-                        billboard.Size = UDim2.new(0, 100, 0, 30)
-                        billboard.StudsOffset = Vector3.new(0, 2, 0)
-                        billboard.AlwaysOnTop = true
-
-                        local label = Instance.new("TextLabel", billboard)
-                        label.Size = UDim2.new(1, 0, 1, 0)
-                        label.BackgroundTransparency = 1
-                        label.TextColor3 = Color3.new(1, 0, 0)
-                        label.TextStrokeTransparency = 0.5
-                        label.Font = Enum.Font.SourceSansBold
-                        label.TextScaled = true
-                        label.Text = "Ball"
-
-                        billboard.Parent = ball
-                        espLabels[ball] = { billboard = billboard, label = label }
-                    end
-
-                    local dist = math.floor((ball.Position - hrp.Position).Magnitude)
-                    espLabels[ball].label.Text = "Ball [" .. dist .. "m]"
-                end
-            end
-        else
-            for ball, tbl in pairs(espLabels) do
-                if tbl.billboard then
-                    tbl.billboard:Destroy()
-                end
-            end
-            espLabels = {}
-        end
-    end
-end)
-
--- Auto block logic with fix
-local lastBlockTime = 0
-local blockCooldown = 1.0 -- seconds; adjust if needed
-
-task.spawn(function()
-    while task.wait(0.05) do
-        if _G.AutoBlock and hrp and player.Character then
-            local shouldBlock = false
-
-            for _, ball in ipairs(workspace:GetDescendants()) do
-                if ball:IsA("BasePart") and ball.Name == ballName and ball.Velocity.Magnitude > 1 then
-                    local distance = (ball.Position - hrp.Position).Magnitude
-
-                    if distance < 35 then
-                        local dirToPlayer = (hrp.Position - ball.Position).Unit
-                        local ballVelocityDir = ball.Velocity.Unit
-                        local dot = dirToPlayer:Dot(ballVelocityDir)
-
-                        if dot > 0.9 then -- stricter check to reduce false triggers
-                            shouldBlock = true
-                            break
-                        end
-                    end
-                end
-            end
-
-            local now = tick()
-            if shouldBlock and now - lastBlockTime > blockCooldown then
-                local screenX = workspace.CurrentCamera.ViewportSize.X / 2
-                local screenY = workspace.CurrentCamera.ViewportSize.Y / 2
-
-                -- First tap
-                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
-                task.wait(0.03)
-                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
-                task.wait(0.03)
-
-                -- Second tap
-                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
-                task.wait(0.03)
-                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
-
-                lastBlockTime = now
-            end
-        end
-    end
-end)
-
--- Tutorial tab
-TutorialTab:CreateParagraph({
-    Title = "Instructions",
-    Content = "Set block input to Screen Tap (recommended). New: auto spam block for fast or close balls! Works like Blade Ball parry but now fixed to avoid random double taps."
-})
-
-TutorialTab:CreateImage({
-    Image = "rbxassetid://122301334004468",
-    ImageColor = Color3.new(1, 1, 1),
-    Title = "Example Image",
-    Description = "Shows how to set screen tap input properly."
-})
+-- You can add more features (auto spam, ESP, etc.) here below
