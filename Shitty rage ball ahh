@@ -3,8 +3,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Rapture Hub",
-    LoadingTitle = "Rapture x west hub",
-    LoadingSubtitle = "by rapture",
+    LoadingTitle = "Rapture Hub",
+    LoadingSubtitle = "by Rapture And West",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -42,17 +42,32 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
-local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart") or player.CharacterAdded:Wait():WaitForChild("HumanoidRootPart")
 
 local ballName = "Ball"
 local blocking = false
+
+-- Setup hrp and update on respawn
+local hrp = nil
+
+local function updateHRP()
+    if player.Character then
+        hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    end
+end
+
+updateHRP()
+
+player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart")
+    updateHRP()
+end)
 
 -- ESP loop
 local espLabels = {}
 
 task.spawn(function()
     while task.wait(0.2) do
-        if _G.EspBall then
+        if _G.EspBall and hrp then
             for _, ball in ipairs(workspace:GetDescendants()) do
                 if ball:IsA("BasePart") and ball.Name == ballName then
                     if not espLabels[ball] then
@@ -91,7 +106,7 @@ task.spawn(function()
     end
 end)
 
--- Auto block logic (Blade Ball style)
+-- Auto block logic with double tap
 task.spawn(function()
     while task.wait() do
         if _G.AutoBlock and hrp and player.Character then
@@ -102,7 +117,7 @@ task.spawn(function()
                 if ball:IsA("BasePart") and ball.Name == ballName and ball.Velocity.Magnitude > 1 then
                     local distance = (ball.Position - hrp.Position).Magnitude
 
-                    if distance < 35 then -- short reaction distance
+                    if distance < 35 then
                         local dirToPlayer = (hrp.Position - ball.Position).Unit
                         local ballVelocityDir = ball.Velocity.Unit
                         local dot = dirToPlayer:Dot(ballVelocityDir)
@@ -118,12 +133,21 @@ task.spawn(function()
             if closestBall and not blocking then
                 blocking = true
 
-                -- Simulate screen tap at center
-                VirtualInputManager:SendMouseButtonEvent(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2, 0, true, game, 0)
-                task.wait(0.05)
-                VirtualInputManager:SendMouseButtonEvent(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2, 0, false, game, 0)
+                -- Simulate double screen tap
+                local screenX = workspace.CurrentCamera.ViewportSize.X / 2
+                local screenY = workspace.CurrentCamera.ViewportSize.Y / 2
 
-                task.wait(0.3) -- wait cooldown
+                -- First tap
+                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
+                task.wait(0.05)
+                -- Second tap
+                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
+
+                task.wait(0.3)
                 blocking = false
             end
         else
@@ -137,7 +161,7 @@ local TutorialTab = Window:CreateTab("Tutorial", 4483362458)
 
 TutorialTab:CreateParagraph({
     Title = "Instructions",
-    Content = "Set block input to Screen Tap (recommended). Works like Blade Ball auto parry: only triggers once when ball is about to hit."
+    Content = "Set block input to Screen Tap (recommended). Works like Blade Ball auto parry: now performs double tap when ball is close. Auto block works after respawn now!"
 })
 
 TutorialTab:CreateImage({
