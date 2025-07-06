@@ -1,0 +1,173 @@
+--// Load Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Rapture Hub",
+    LoadingTitle = "Rapture Hub",
+    LoadingSubtitle = "by yourname",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "RaptureHubConfig"
+    },
+    Discord = {
+        Enabled = false,
+    },
+    KeySystem = false,
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+local AutoBlockToggle = MainTab:CreateToggle({
+    Name = "Auto Block Ball",
+    CurrentValue = false,
+    Flag = "AutoBlockBall",
+    Callback = function(Value)
+        _G.AutoBlock = Value
+    end,
+})
+
+-- Auto refresh Auto Block every 10 seconds
+task.spawn(function()
+    while task.wait(10) do
+        if _G.AutoBlock then
+            _G.AutoBlock = false
+            print("[Rapture Hub] Auto Block temporarily disabled for refresh")
+            task.wait(0.2)
+            _G.AutoBlock = true
+            print("[Rapture Hub] Auto Block re-enabled after refresh")
+        end
+    end
+end)
+
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+
+local EspBallToggle = VisualTab:CreateToggle({
+    Name = "Esp Ball",
+    CurrentValue = false,
+    Flag = "EspBall",
+    Callback = function(Value)
+        _G.EspBall = Value
+    end,
+})
+
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local player = Players.LocalPlayer
+local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart") or player.CharacterAdded:Wait():WaitForChild("HumanoidRootPart")
+
+local ballName = "Ball"
+local hasBlocked = false
+
+-- Debug function
+local function debugPrint(msg)
+    print("[Rapture Hub] " .. msg)
+end
+
+-- Auto block logic with highlight loop and dynamic distance
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoBlock and hrp and player.Character then
+            local highlight = player.Character:FindFirstChildOfClass("Highlight")
+            if highlight then
+                if highlight.FillColor == Color3.new(1, 0, 0) then
+                    local ballNear = false
+                    for _, ball in ipairs(workspace:GetDescendants()) do
+                        if ball:IsA("BasePart") and ball.Name == ballName then
+                            local baseDistance = 30
+                            local dynamicDistance = baseDistance
+
+                            -- Add +10 if ball is fast
+                            if ball.Velocity.Magnitude > 50 then
+                                dynamicDistance = baseDistance + 10
+                                debugPrint("Ball is fast! Increasing distance to " .. dynamicDistance)
+                            end
+
+                            local distance = (ball.Position - hrp.Position).Magnitude
+                            if distance <= dynamicDistance then
+                                ballNear = true
+                                debugPrint("Highlight active & Ball within " .. dynamicDistance .. "! Distance: " .. math.floor(distance))
+                                break
+                            end
+                        end
+                    end
+
+                    if ballNear and not hasBlocked then
+                        debugPrint("Pressing Key F (VirtualUser)")
+                        VirtualUser:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+                        task.wait(0.05)
+                        VirtualUser:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+                        hasBlocked = true
+                    elseif not ballNear then
+                        hasBlocked = false
+                    end
+                else
+                    hasBlocked = false
+                end
+            else
+                hasBlocked = false
+            end
+        else
+            hasBlocked = false
+        end
+    end
+end)
+
+-- ESP loop
+local espLabels = {}
+
+task.spawn(function()
+    while task.wait(0.2) do
+        if _G.EspBall then
+            for _, ball in ipairs(workspace:GetDescendants()) do
+                if ball:IsA("BasePart") and ball.Name == ballName then
+                    if not espLabels[ball] then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "BallESP"
+                        billboard.Adornee = ball
+                        billboard.Size = UDim2.new(0, 100, 0, 30)
+                        billboard.StudsOffset = Vector3.new(0, 2, 0)
+                        billboard.AlwaysOnTop = true
+
+                        local label = Instance.new("TextLabel", billboard)
+                        label.Size = UDim2.new(1, 0, 1, 0)
+                        label.BackgroundTransparency = 1
+                        label.TextColor3 = Color3.new(1, 0, 0)
+                        label.TextStrokeTransparency = 0.5
+                        label.Font = Enum.Font.SourceSansBold
+                        label.TextScaled = true
+                        label.Text = "Ball"
+
+                        billboard.Parent = ball
+                        espLabels[ball] = { billboard = billboard, label = label }
+                    end
+
+                    local dist = math.floor((ball.Position - hrp.Position).Magnitude)
+                    espLabels[ball].label.Text = "Ball [" .. dist .. "m]"
+                end
+            end
+        else
+            for ball, tbl in pairs(espLabels) do
+                if tbl.billboard then
+                    tbl.billboard:Destroy()
+                end
+            end
+            espLabels = {}
+        end
+    end
+end)
+
+-- Tutorial Tab
+local TutorialTab = Window:CreateTab("Tutorial", 4483362458)
+
+TutorialTab:CreateParagraph({
+    Title = "Instructions",
+    Content = "To make auto block work, first go to settings and scroll down and change it to Screen tap."
+})
+
+TutorialTab:CreateImage({
+    Image = "rbxassetid://122301334004468",
+    ImageColor = Color3.new(1, 1, 1),
+    Title = "Example Image",
+    Description = "This shows how to set screen tap settings properly."
+})
