@@ -104,7 +104,10 @@ task.spawn(function()
     end
 end)
 
--- Auto block logic
+-- Auto block logic with fix
+local lastBlockTime = 0
+local blockCooldown = 1.0 -- seconds; adjust if needed
+
 task.spawn(function()
     while task.wait(0.05) do
         if _G.AutoBlock and hrp and player.Character then
@@ -119,7 +122,7 @@ task.spawn(function()
                         local ballVelocityDir = ball.Velocity.Unit
                         local dot = dirToPlayer:Dot(ballVelocityDir)
 
-                        if dot > 0.7 then
+                        if dot > 0.9 then -- stricter check to reduce false triggers
                             shouldBlock = true
                             break
                         end
@@ -127,7 +130,8 @@ task.spawn(function()
                 end
             end
 
-            if shouldBlock then
+            local now = tick()
+            if shouldBlock and now - lastBlockTime > blockCooldown then
                 local screenX = workspace.CurrentCamera.ViewportSize.X / 2
                 local screenY = workspace.CurrentCamera.ViewportSize.Y / 2
 
@@ -136,12 +140,13 @@ task.spawn(function()
                 task.wait(0.03)
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
                 task.wait(0.03)
+
                 -- Second tap
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, true, game, 0)
                 task.wait(0.03)
                 VirtualInputManager:SendMouseButtonEvent(screenX, screenY, 0, false, game, 0)
 
-                task.wait(0.1)
+                lastBlockTime = now
             end
         end
     end
@@ -150,7 +155,7 @@ end)
 -- Tutorial tab
 TutorialTab:CreateParagraph({
     Title = "Instructions",
-    Content = "Set block input to Screen Tap (recommended). New: auto spam block for fast or close balls! Works like Blade Ball parry but spams block continuously when needed."
+    Content = "Set block input to Screen Tap (recommended). New: auto spam block for fast or close balls! Works like Blade Ball parry but now fixed to avoid random double taps."
 })
 
 TutorialTab:CreateImage({
